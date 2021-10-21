@@ -742,7 +742,7 @@ library("WGCNA")
                #and functional enrichment analysis suites such as David or AmiGO. 
                
                ###For example, we write out the LocusLinkID (entrez) codes for the brown module into a file:
-               
+               getwd()
                # Read in the probe annotation
                annot = read.csv(file = "data/GeneAnnotation.csv")
                
@@ -755,13 +755,15 @@ library("WGCNA")
                
                # $ Choose interesting modules
                intModules = c("brown", "red", "salmon")
+               
                for (module in intModules){
                  # Select module probes
                  modGenes = (moduleColors==module)
                  # Get their entrez ID codes
-                 modLLIDs = allLLIDs[modGenes];
+                 modLLIDs = allLLIDs[modGenes]
                  # Write them into a file
-                 fileName = paste("data/LocusLinkIDs-", module, ".txt", sep="");
+                 fileName = paste("C:/Users/Dexter weighell/Documents/Biology/Yr 4/Project/R/tutorial/WGCNA_tutorial/LocusLinkIDs-", module, ".txt", sep="")
+                 
                  write.table(as.data.frame(modLLIDs), file = fileName,
                              row.names = FALSE, col.names = FALSE)
                }
@@ -770,5 +772,48 @@ library("WGCNA")
                fileName = paste("LocusLinkIDs-all.txt", sep="");
                write.table(as.data.frame(allLLIDs), file = fileName,
                            row.names = FALSE, col.names = FALSE)
+               
+          #==== 
+          #4.b   Enrichment analysis directly within R
+          #====
+               
+               ###The WGCNA package now contains a function to perform GO enrichment analysis using a simple, single step.
+               
+               ###To run the function, Biconductor packages GO.db, AnnotationDBI, and the appropriate organism-specific annotation package(s) need to be installed before running this code.
+               
+               ###The organism-specific packages have names of the form org.Xx.eg.db, where Xx stands for organism code, for example, Mm for mouse, Hs for human, etc.
+               
+               ###The only exception is yeast, for which no org.Xx.eg.db package is available; instead, the package carries the name org.Sc.sgd.db.
+               
+               ###Please visit the Bioconductor main page at http://www.bioconductor.org to download and install the required packages.
+               
+               ###In our case we are studying gene expressions from mice, so this code needs the package org.Mm.eg.db.
+               
+               ###Calling the GO enrichment analysis function GOenrichmentAnalysis is very simple. 
+               
+               ###The function takes a vector of module labels, and the Entrez (a.k.a. Locus Link) codes for the genes whose labels are given.
+               
+               
+               GOenr = GOenrichmentAnalysis(moduleColors, allLLIDs, organism = "mouse", nBestP = 10)
+               
+               #The function runs for awhile and returns a long list, the most interesting component of which is:
+               
+               tab = GOenr$bestPTerms[[4]]$enrichment
+               
+               #This is an enrichment table containing the 10 best terms for each module present in moduleColors.
+               
+               #Names of the columns within the table can be accessed by:
+               names(tab)
+               
+               
+               
+               
+               
+               
+               
+               
+               
+               
+               
                
                
