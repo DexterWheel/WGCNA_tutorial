@@ -3,6 +3,7 @@ library("WGCNA")
 #Qs
 #line 212: what is approximate scale-free topology
 #line 712: -abs?
+#'Line 800: new package?
 
 #####
 #Tutorial 1: Analysis of a single empirical gene expression data set
@@ -718,6 +719,7 @@ library("WGCNA")
      #4.  Interfacing network analysis with other data such as functional annotation and gene ontology
      #====      
                library(WGCNA)
+               library(org.Mm.eg.db)
                # The following setting is important, do not omit.
                options(stringsAsFactors = FALSE);
                # Load the expression and trait data saved in the first part
@@ -762,14 +764,14 @@ library("WGCNA")
                  # Get their entrez ID codes
                  modLLIDs = allLLIDs[modGenes]
                  # Write them into a file
-                 fileName = paste("C:/Users/Dexter weighell/Documents/Biology/Yr 4/Project/R/tutorial/WGCNA_tutorial/LocusLinkIDs-", module, ".txt", sep="")
+                 fileName = paste("C:/Users/Dexter weighell/Documents/Biology/Yr 4/Project/R/tutorial/WGCNA_tutorial/data-processed/LocusLinkIDs-", module, ".txt", sep="")
                  
                  write.table(as.data.frame(modLLIDs), file = fileName,
                              row.names = FALSE, col.names = FALSE)
                }
                
                # As background in the enrichment analysis, we will use all probes in the analysis.
-               fileName = paste("LocusLinkIDs-all.txt", sep="");
+               fileName = paste("data-processed/LocusLinkIDs-all.txt", sep="");
                write.table(as.data.frame(allLLIDs), file = fileName,
                            row.names = FALSE, col.names = FALSE)
                
@@ -796,6 +798,9 @@ library("WGCNA")
                
                GOenr = GOenrichmentAnalysis(moduleColors, allLLIDs, organism = "mouse", nBestP = 10)
                
+               ###   ###   ###   ###  Q  ###   ###   ###   ###
+               
+               ### enrichmentAnalysis is apparently the new verion on GOenrichment analysis
                #The function runs for awhile and returns a long list, the most interesting component of which is:
                
                tab = GOenr$bestPTerms[[4]]$enrichment
@@ -805,13 +810,151 @@ library("WGCNA")
                #Names of the columns within the table can be accessed by:
                names(tab)
                
+               ###We refer the reader to the help page of the function within R (available using ?GOenrichmentAnalysis at the R prompt) for details of what each column means. Because the term definitions can be quite long, the table is a bit difficult to display on the screen. 
+               
+               #For readers who prefer to look at tables in Excel or similar spreadsheet software, it is best to
+               #save the table into a file and open it using their favorite tool:
+               
+               write.table(tab, file = "data-processed/GOEnrichmentTable.csv", sep = ",", quote = TRUE, row.names = FALSE)
                
                
+               #On the other hand, to quickly take a look at the results, one can also abridge the table a bit and display it directly on screen:
+               
+               keepCols = c(1, 2, 5, 6, 7, 12, 13);
+               screenTab = tab[, keepCols];
+               # Round the numeric columns to 2 decimal places:
+               numCols = c(3, 4);
+               screenTab[, numCols] = signif(apply(screenTab[, numCols], 2, as.numeric), 2)
+               # Truncate the the term name to at most 40 characters
+               screenTab[, 7] = substring(screenTab[, 7], 1, 40)
+               # Shorten the column names:
+               colnames(screenTab) = c("module", "size", "p-val", "Bonf", "nInTerm", "ont", "term name");
+               rownames(screenTab) = NULL;
+               # Set the width of R’s output. The reader should play with this number to obtain satisfactory output.
+               options(width=95)
+               # Finally, display the enrichment table:
+               screenTab
+     #==== 
+     #5.  Network visualization using WGCNA functions
+     #====
+           
+          # Load the WGCNA package
+          library(WGCNA)
+          # The following setting is important, do not omit.
+          options(stringsAsFactors = FALSE);
+          # Load the expression and trait data saved in the first part
+          lnames = load(file = "data-processed/FemaleLiver-01-dataInput.RData");
+          #The variable lnames contains the names of loaded variables.
+          lnames
+          # Load network data saved in the second part.
+          lnames = load(file = "data-processed/FemaleLiver-02-networkConstruction-auto.RData")
+          lnames
+          nGenes = ncol(datExpr)
+          nSamples = nrow(datExpr)
+               
+          #==== 
+          #5.a   Visualizing the gene network
+          #====
+               
+               ###One way to visualize a weighted network is to plot its heatmap, Fig. 1.
+               
+               ###Each row and column of the heatmap correspond to a single gene.
+               
+               ###The heatmap can depict adjacencies or topological overlaps, with light colors denoting low adjacency (overlap) and darker colors higher adjacency (overlap).
+               
+               ###In addition, the gene dendrograms and module colors are plotted along the top and left side of the heatmap.
+               
+               ###The package provides a convenient function to create such network plots;
+               
+               ###Fig. 1 was created using the following code.
+               
+               ###This code can be executed only if the network was calculated using a single-block approach (that is, using the 1-step automatic or the step-by-step tutorials). 
+               
+               ###If the networks were calculated using the block-wise approach, the user will need to modify this code to perform the visualization in each block separately.
+               
+               ###The modification is simple and we leave it as an exercise for the interested reader.
+               
+               ###Calculate topological overlap anew: this could be done more efficiently by saving the TOM calculated during module detection, but let us do it again here.
+               
+               dissTOM = 1-TOMsimilarityFromExpr(datExpr, power = 6)
+               # Transform dissTOM with a power to make moderately strong connections more visible in the heatmap
+               plotTOM = dissTOM^7
+               # Set diagonal to NA for a nicer plot
+               diag(plotTOM) = NA
+               # Call the plot function
+               sizeGrWindow(9,9)
+               TOMplot(plotTOM, geneTree, moduleColors, main = "Network heatmap plot, all genes")
+               
+               nSelect = 2000
+               # For reproducibility, we set the random seed
+               set.seed(10);
+               select = sample(nGenes, size = nSelect);
+               selectTOM = dissTOM[select, select];
+               # There’s no simple way of restricting a clustering tree to a subset of genes, so we must re-cluster.
+               selectTree = hclust(as.dist(selectTOM), method = "average")
+               selectColors = moduleColors[select];
+               # Open a graphical window
+               sizeGrWindow(9,9)
+               # Taking the dissimilarity to a power, say 10, makes the plot more informative by effectively changing
+               # the color palette; setting the diagonal to NA also improves the clarity of the plot
+               plotDiss = selectTOM^7;
+               diag(plotDiss) = NA;
+               TOMplot(plotDiss, selectTree, selectColors, main = "Network heatmap plot, selected genes")
+               
+          #==== 
+          #5.b   Visualizing the network of eigengenes
+          #====  
+               
+               ### It is often interesting to study the relationships among the found modules. 
+               ###One can use the eigengenes as representative profiles and quantify module similarity by eigengene correlation.
+               
+               ###The package contains a convenient function plotEigengeneNetworks that generates a summary plot of the eigengene network. 
+               
+               ###It is usually informative to add a clinical trait (or multiple traits) to the eigengenes to see how the traits fit into the eigengene network:
                
                
+               # Recalculate module eigengenes
+               MEs = moduleEigengenes(datExpr, moduleColors)$eigengenes
+               
+               # Isolate weight from the clinical traits
+               weight = as.data.frame(datTraits$weight_g);
+               names(weight) = "weight"
+               # Add the weight to existing module eigengenes
+               MET = orderMEs(cbind(MEs, weight))
+               
+               # Plot the relationships among the eigengenes and the trait
+               sizeGrWindow(5,7.5);
+               par(cex = 0.9)
+               plotEigengeneNetworks(MET, "", 
+                                     marDendro = c(0,4,1,2), 
+                                     marHeatmap = c(3,4,1,2), 
+                                     cex.lab = 0.8, 
+                                     xLabelsAngle = 90)
                
                
+               ### The function produces a dendrogram of the eigengenes and trait(s), and a heatmap of their relationships.
                
+               ### To split the dendrogram and heatmap plots, we can use the following code
+               
+               # Plot the dendrogram
+               sizeGrWindow(6,6)
+               par(cex = 1.0)
+               plotEigengeneNetworks(MET, "Eigengene dendrogram", 
+                                     marDendro = c(0,4,2,0),
+                                     plotHeatmaps = FALSE)
+               
+               # Plot the heatmap matrix (note: this plot will overwrite the dendrogram plot)
+               par(cex = 1.0)
+               plotEigengeneNetworks(MET, "Eigengene adjacency heatmap", 
+                                     marHeatmap = c(3,4,2,2),
+                                     plotDendrograms = FALSE, 
+                                     xLabelsAngle = 90)
+               
+               
+               #The eigengene dendrogram and heatmap identify groups of correlated eigengenes termed meta-modules. 
+               #For example, the dendrogram indicates that red, brown and bluw modules are highly related; 
+               #their mutual correlations are stronger than their correlations with weight. 
+               #On the other hand, the salmon module, which is also significantly correlated with weight, is not part of the same meta-module as the red, brown and blue modules, at least if meta-modules are defined as tight custers of modules (for example, modules with a correlation of eigengenes of at least 0.5).
                
                
                
